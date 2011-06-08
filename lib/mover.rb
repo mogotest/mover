@@ -129,11 +129,11 @@ module Mover
         else
           conditions.gsub!(to[:table], 't')
           conditions.gsub!(from[:table], 'f')
-          conditions.gsub!(/\"id\"/,'f.id') if connection.class.to_s.include?('PostgreSQL')
+          conditions.gsub!(/\"id\"/,'f.id') if postgresql?(connection)
           
           select = insert.values.collect { |i| i.include?("'") ? i : "f.#{i}" }
           set = insert.collect do |column, value|
-            prefix = 't.' unless connection.class.to_s.include?('PostgreSQL')
+            prefix = 't.' unless postgresql?(connection)
             if value.include?("'")
               "#{prefix}#{column} = #{value}"
             else
@@ -141,7 +141,7 @@ module Mover
             end
           end
           
-          if connection.class.to_s.include?('PostgreSQL')
+          if postgresql?(connection)
             connection.execute(<<-SQL)
               UPDATE #{to[:table]}
                 AS t
@@ -189,7 +189,7 @@ module Mover
     def reserve_id
       id = nil
       transaction do
-        if connection.class.to_s.include?('PostgreSQL')
+        if postgresql?(connection)
           id = connection.insert("INSERT INTO #{self.table_name} (id) VALUES (nextval('#{self.table_name}_id_seq'::regclass))").to_i
         else
           id = connection.insert("INSERT INTO #{self.table_name} () VALUES ()")
@@ -197,6 +197,10 @@ module Mover
         connection.execute("DELETE FROM #{self.table_name} WHERE id = #{id}") if id
       end
       id
+    end
+
+    def postgresql?(connection)
+      connection.class.to_s.include?('PostgreSQL') || (connection.respond_to?(:adapter_name) && connection.adapter_name.to_s.include?('PostgreSQL'))
     end
   end
   
