@@ -130,6 +130,7 @@ module Mover
           conditions.gsub!(to[:table], 't')
           conditions.gsub!(from[:table], 'f')
           conditions.gsub!(/\"id\"/,'f.id') if postgresql?(connection)
+          conditions.gsub!(/\"lock_version\"/, 't.lock_version') if postgresql?(connection)
           
           select = insert.values.collect { |i| i.include?("'") ? i : "f.#{i}" }
           set = insert.collect do |column, value|
